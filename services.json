@@ -1,0 +1,20 @@
+{
+  "services": {
+    "pre-calibration": {
+      "module": "components.pre_calibration",
+      "class": "PreCalibrationComponent",
+      "config": {
+        "timeout": 30,
+        "retries": 3
+      }
+    },
+    "simulation": {
+      "module": "components.simulation",
+      "class": "SimulationComponent",
+      "config": {
+        "max_iterations": 1000,
+        "convergence_threshold": 0.001
+      }
+    }
+  }
+}

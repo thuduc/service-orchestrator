@@ -1,4 +1,4 @@
-# Model Service Framework
+# Service Orchestration Framework
 
 A modular Python framework for building component-based microservices with a plugin architecture.
 

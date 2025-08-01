@@ -1,8 +1,8 @@
-# Model Service Framework Design
+# Service Orchestration Framework Design
 
 ## Overview
 
-This document outlines the design for a modular Python framework that allows easy registration and execution of components through a single service entrypoint. The framework follows a plugin-based architecture with support for cross-cutting concerns.
+This document outlines the design for a modular Python framework that allows easy registration, execution, and orchestration of components through a single service entrypoint. The framework follows a plugin-based architecture with support for cross-cutting concerns.
 
 ## Core Architecture
 

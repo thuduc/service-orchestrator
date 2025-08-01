@@ -1,6 +1,15 @@
-# Service Orchestration Framework
+# Proof-of-concept: creation of a Service Orchestration Framework in Python
 
-A modular Python framework for building component-based microservices with a plugin architecture.
+This POC is to evaluate Claude Code (an agentic coding tool from Anthropic: https://www.anthropic.com/claude-code), known for its ability to design & build modern software frameworks.
+
+Service Orchestration is a modular Python framework for building component-based microservices with a plugin architecture.
+
+#### Development Process: 
+* Step 1 - ask Claude Code to design a Service Orchestration framework using requirements specified in the REQUIREMENTS.md file. We used Anthropic's Claude Opus 4 LLM with Claude Code due to its advanced ability to design and build frameworks. We asked the LLM to save the design to the FRAMEWORK_DESIGN.md file for review.
+* Step 2 - developer reviews the FRAMEWORK_DESIGN.md and makes changes as needed.
+* Step 3 - ask Claude Code to generate code using the FRAMEWORK_DESIGN.md, including comprehentive using test coverage.
+
+The process took less than 1 hour to complete using Claude Code. 
 
 ## Features
 

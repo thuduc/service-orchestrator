@@ -1,17 +1,20 @@
-# Proof-of-concept: creation of a Service Orchestration Framework in Python
+## GenAI Proof of Concept: creation of a complex software framework in Python
+The purpose of this proof of concept is to find out if an LLM can design and implement a complex framework using foundational software patterns and best practices. For our PoC, we will be using Python as the programming language. The framework we're building is a Service Orchestation framework, which supports dynamic loading of services, service execution, and service orchestration.
 
-This POC is to evaluate Claude Code (an agentic coding tool from Anthropic: https://www.anthropic.com/claude-code), known for its ability to design & build modern software frameworks.
+### LLM & AI Tool
+* LLM used: Claude Opus 4 (best coding LLM) - https://www.anthropic.com/claude/opus
+* AI tool used: Claude Code (best coding CLI due to its integration with Clause 4 LLMs) - https://www.anthropic.com/claude-code
 
-Service Orchestration is a modular Python framework for building component-based microservices with a plugin architecture.
+### Development Process: 
+* Step 1 - use Claude Code to design a Service Orchestration framework using requirements specified in the [REQUIREMENTS.md](REQUIREMENTS.md). The design will be saved to [FRAMEWORK_DESIGN.md](FRAMEWORK_DESIGN.md) file for review.
+* Step 2 - developer reviews the FRAMEWORK_DESIGN.md and makes changes as needed. Developer can also provide feedback to Claude Code and iterate until the design is ready.
+* Step 3 - use Claude Code to generate code using the [FRAMEWORK_DESIGN.md](FRAMEWORK_DESIGN.md)
 
-#### Development Process: 
-* Step 1 - ask Claude Code to design a Service Orchestration framework using requirements specified in the REQUIREMENTS.md file. We used Anthropic's Claude Opus 4 LLM with Claude Code due to its advanced ability to design and build frameworks. We asked the LLM to save the design to the FRAMEWORK_DESIGN.md file for review.
-* Step 2 - developer reviews the FRAMEWORK_DESIGN.md and makes changes as needed.
-* Step 3 - ask Claude Code to generate code using the FRAMEWORK_DESIGN.md, including comprehentive using test coverage.
+### PoC Results
+* The process took an hour to complete
+* The framework and its default implementation resides under framework/ directory. The sample components reside under components/ directory
 
-The process took less than 1 hour to complete using Claude Code. 
-
-## Features
+### Features
 
 - **Component-based architecture**: All components implement a common `execute(context)` interface
 - **Dynamic component loading**: Components are loaded dynamically based on configuration
@@ -19,7 +22,7 @@ The process took less than 1 hour to complete using Claude Code.
 - **Configuration-driven**: Service mappings defined in JSON configuration
 - **Extensible design**: Easy to add new components and middleware
 
-## Project Structure
+### Project Structure
 
 ```
 model-svc/
@@ -39,14 +42,14 @@ model-svc/
 └── FRAMEWORK_DESIGN.md      # Detailed design documentation
 ```
 
-## Quick Start
+### Quick Start
 
 1. Run the example:
 ```bash
 python3 main.py
 ```
 
-## Creating New Components
+### Creating New Components
 
 1. Create a new Python module in the `components/` directory
 2. Implement the `Component` interface:
@@ -75,7 +78,7 @@ class MyComponent(Component):
 }
 ```
 
-## Using the Framework
+### Using the Framework
 
 ```python
 from framework import ServiceRegistry, ServiceEntrypoint
@@ -93,7 +96,7 @@ context = {
 result = service.execute(context)
 ```
 
-## Middleware
+### Middleware
 
 The framework supports middleware for cross-cutting concerns:
 
@@ -118,6 +121,6 @@ Services are configured in `services.json`:
 }
 ```
 
-## Future Enhancements
+### Future Enhancements
 
 See `FRAMEWORK_DESIGN.md` for planned features and extensions.

@@ -1,11 +1,13 @@
 import json
-import importlib
-from typing import Dict, Any, Optional
-from .component import Component
+from typing import Dict, Any, Optional, List
+from .steps_executor import StepsExecutor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceRegistry:
-    """Manages component registration and lookup"""
+    """Manages service registration and lookup for steps-based services"""
     
     def __init__(self, config_path: Optional[str] = None):
         """
@@ -15,114 +17,121 @@ class ServiceRegistry:
             config_path: Path to the JSON configuration file
         """
         self.config_path = config_path
-        self._registry: Dict[str, Dict[str, Any]] = {}
-        self._component_cache: Dict[str, Component] = {}
+        self._registry: Dict[str, List[Dict[str, Any]]] = {}
+        self._executor_cache: Dict[str, StepsExecutor] = {}
         
         if config_path:
             self._load_configuration()
     
     def _load_configuration(self):
-        """Load service mappings from JSON configuration"""
+        """Load service definitions from JSON configuration"""
         try:
             with open(self.config_path, 'r') as f:
                 config = json.load(f)
                 
-            if 'services' in config:
-                for service_id, service_config in config['services'].items():
-                    self.register_component(
-                        service_id=service_id,
-                        module_path=service_config['module'],
-                        class_name=service_config['class'],
-                        config=service_config.get('config', {})
-                    )
+            if 'services' not in config:
+                raise ValueError("Configuration must contain 'services' key")
+            
+            for service_id, service_config in config['services'].items():
+                if 'steps' not in service_config:
+                    raise ValueError(f"Service '{service_id}' must have 'steps' array")
+                
+                if not isinstance(service_config['steps'], list):
+                    raise ValueError(f"Service '{service_id}' steps must be an array")
+                
+                if len(service_config['steps']) == 0:
+                    raise ValueError(f"Service '{service_id}' must have at least one step")
+                
+                self.register_service(service_id, service_config['steps'])
+                logger.info(f"Registered service '{service_id}' with {len(service_config['steps'])} steps")
+                
         except FileNotFoundError:
             raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in configuration file: {e}")
     
-    def register_component(self, service_id: str, module_path: str, 
-                         class_name: str, config: Optional[Dict[str, Any]] = None):
+    def register_service(self, service_id: str, steps: List[Dict[str, Any]]):
         """
-        Register a new component
+        Register a new service with its steps configuration
         
         Args:
             service_id: Unique identifier for the service
-            module_path: Python module path (e.g., 'components.user_service')
-            class_name: Name of the component class
-            config: Optional configuration for the component
+            steps: List of step configurations
         """
-        self._registry[service_id] = {
-            'module_path': module_path,
-            'class_name': class_name,
-            'config': config or {}
-        }
+        # Validate each step has required fields
+        for i, step in enumerate(steps):
+            if 'module' not in step or 'class' not in step:
+                raise ValueError(
+                    f"Service '{service_id}' step {i} must have 'module' and 'class' fields"
+                )
+            
+            # Ensure step has a name (generate if not provided)
+            if 'name' not in step:
+                step['name'] = f"step_{i+1}"
+        
+        self._registry[service_id] = steps
     
-    def get_component(self, service_id: str) -> Component:
+    def get_executor(self, service_id: str) -> StepsExecutor:
         """
-        Dynamically load and instantiate component
+        Get or create a StepsExecutor for the service
         
         Args:
             service_id: Unique identifier for the service
             
         Returns:
-            Instantiated component
+            StepsExecutor instance for the service
             
         Raises:
             KeyError: If service_id is not registered
-            ImportError: If module cannot be imported
-            AttributeError: If class cannot be found in module
         """
         if service_id not in self._registry:
             raise KeyError(f"Service '{service_id}' not found in registry")
         
         # Check cache first
-        if service_id in self._component_cache:
-            return self._component_cache[service_id]
+        if service_id not in self._executor_cache:
+            # Create new executor for this service
+            steps_config = self._registry[service_id]
+            self._executor_cache[service_id] = StepsExecutor(steps_config)
+            logger.info(f"Created executor for service '{service_id}'")
         
-        service_info = self._registry[service_id]
-        module_path = service_info['module_path']
-        class_name = service_info['class_name']
-        config = service_info['config']
-        
-        try:
-            # Dynamically import the module
-            module = importlib.import_module(module_path)
-            
-            # Get the component class
-            component_class = getattr(module, class_name)
-            
-            # Instantiate the component
-            if config:
-                component = component_class(**config)
-            else:
-                component = component_class()
-            
-            # Verify it implements the Component interface
-            if not isinstance(component, Component):
-                raise TypeError(
-                    f"Class {class_name} does not implement the Component interface"
-                )
-            
-            # Cache the component instance
-            self._component_cache[service_id] = component
-            
-            return component
-            
-        except ImportError as e:
-            raise ImportError(f"Failed to import module '{module_path}': {e}")
-        except AttributeError as e:
-            raise AttributeError(
-                f"Class '{class_name}' not found in module '{module_path}': {e}"
-            )
+        return self._executor_cache[service_id]
     
-    def list_services(self) -> Dict[str, str]:
+    def list_services(self) -> Dict[str, int]:
         """
         List all registered services
         
         Returns:
-            Dictionary mapping service_id to module_path
+            Dictionary mapping service_id to number of steps
         """
         return {
-            service_id: info['module_path'] 
-            for service_id, info in self._registry.items()
+            service_id: len(steps) 
+            for service_id, steps in self._registry.items()
+        }
+    
+    def get_service_info(self, service_id: str) -> Dict[str, Any]:
+        """
+        Get detailed information about a service
+        
+        Args:
+            service_id: Unique identifier for the service
+            
+        Returns:
+            Service configuration including steps
+        """
+        if service_id not in self._registry:
+            raise KeyError(f"Service '{service_id}' not found in registry")
+        
+        steps = self._registry[service_id]
+        return {
+            'service_id': service_id,
+            'steps': [
+                {
+                    'name': step.get('name'),
+                    'module': step.get('module'),
+                    'class': step.get('class'),
+                    'has_input_mapping': bool(step.get('input_mapping')),
+                    'has_output_mapping': bool(step.get('output_mapping'))
+                }
+                for step in steps
+            ]
         }

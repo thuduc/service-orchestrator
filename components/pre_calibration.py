@@ -5,14 +5,14 @@ from framework.component import Component
 class PreCalibrationComponent(Component):
     """Component for pre-calibration processing"""
     
-    def __init__(self, **kwargs):
+    def __init__(self, config: Dict[str, Any] = None):
         """
         Initialize the Pre-Calibration component
         
         Args:
-            **kwargs: Optional configuration parameters
+            config: Optional configuration parameters
         """
-        self.config = kwargs
+        self.config = config or {}
     
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -24,6 +24,7 @@ class PreCalibrationComponent(Component):
         Returns:
             Dictionary with execution results
         """
+        print('Hi from Pre-Calibration Component')
         return {
             "status": "success",
             "message": "Hello World from Pre-Calibration Component",

@@ -1,20 +1,73 @@
 {
   "services": {
     "pre-calibration": {
-      "module": "components.pre_calibration",
-      "class": "PreCalibrationComponent",
-      "config": {
-        "timeout": 30,
-        "retries": 3
-      }
+      "steps": [
+        {
+          "name": "calibrate",
+          "module": "components.pre_calibration",
+          "class": "PreCalibrationComponent",
+          "config": {
+            "timeout": 30,
+            "retries": 3
+          }
+        }
+      ]
     },
     "simulation": {
-      "module": "components.simulation",
-      "class": "SimulationComponent",
-      "config": {
-        "max_iterations": 1000,
-        "convergence_threshold": 0.001
-      }
+      "steps": [
+        {
+          "name": "simulate",
+          "module": "components.simulation",
+          "class": "SimulationComponent",
+          "config": {
+            "max_iterations": 1000,
+            "convergence_threshold": 0.001
+          }
+        }
+      ]
+    },
+    "data-processing": {
+      "steps": [
+        {
+          "name": "validate",
+          "module": "components.validation",
+          "class": "ValidationComponent",
+          "config": {
+            "required_fields": ["data", "request_id"]
+          },
+          "output_mapping": {
+            "validated_data": "data",
+            "is_valid": "validation_passed"
+          }
+        },
+        {
+          "name": "transform",
+          "module": "components.transformation",
+          "class": "TransformationComponent",
+          "config": {
+            "transform_type": "uppercase"
+          },
+          "input_mapping": {
+            "data": "data"
+          },
+          "output_mapping": {
+            "transformed_data": "processed"
+          }
+        },
+        {
+          "name": "persist",
+          "module": "components.persistence",
+          "class": "PersistenceComponent",
+          "config": {
+            "output_dir": "./output",
+            "format": "json"
+          },
+          "input_mapping": {
+            "processed": "processed",
+            "request_id": "request_id"
+          }
+        }
+      ]
     }
   }
 }

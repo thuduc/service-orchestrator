@@ -6,8 +6,7 @@ Example usage and demonstration of steps-based architecture
 
 import logging
 import sys
-from framework import ServiceRegistry, ServiceEntrypoint, MiddlewarePipeline
-from framework.logging_middleware import LoggingMiddleware
+from framework import ServiceRegistry, ServiceEntrypoint
 from framework.config_validator import validate_config
 
 
@@ -27,9 +26,9 @@ def main():
     logger = logging.getLogger(__name__)
     
     try:
-        # Validate configuration first
-        logger.info("Validating service configuration...")
-        if not validate_config('services.json'):
+        # Validate configurations
+        logger.info("Validating configurations...")
+        if not validate_config('services.json', 'middlewares.json'):
             logger.error("Configuration validation failed")
             sys.exit(1)
         
@@ -37,19 +36,11 @@ def main():
         logger.info("Initializing service registry...")
         registry = ServiceRegistry(config_path='services.json')
         
-        # Create middleware pipeline
-        logger.info("Setting up middleware pipeline...")
-        middleware_pipeline = MiddlewarePipeline()
-        
-        # Add logging middleware
-        logging_middleware = LoggingMiddleware(logger)
-        middleware_pipeline.add_middleware(logging_middleware)
-        
-        # Create service entrypoint
-        logger.info("Creating service entrypoint...")
+        # Create service entrypoint with auto-configured middleware
+        logger.info("Creating service entrypoint with configured middleware...")
         service = ServiceEntrypoint(
             registry=registry,
-            middleware_pipeline=middleware_pipeline
+            middleware_config_path='middlewares.json'
         )
         
         # Display registered services

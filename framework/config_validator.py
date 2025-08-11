@@ -7,16 +7,18 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigValidator:
-    """Validates service configurations for the steps-based architecture"""
+    """Validates service and middleware configurations"""
     
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, middleware_config_path: Optional[str] = None):
         """
         Initialize the configuration validator
         
         Args:
-            config_path: Path to the JSON configuration file
+            config_path: Path to the services JSON configuration file
+            middleware_config_path: Optional path to middlewares JSON configuration file
         """
         self.config_path = config_path
+        self.middleware_config_path = middleware_config_path
         self.errors: List[str] = []
         self.warnings: List[str] = []
     
@@ -30,29 +32,13 @@ class ConfigValidator:
         self.errors = []
         self.warnings = []
         
-        try:
-            # Load configuration
-            with open(self.config_path, 'r') as f:
-                config = json.load(f)
-        except FileNotFoundError:
-            self.errors.append(f"Configuration file not found: {self.config_path}")
-            return False
-        except json.JSONDecodeError as e:
-            self.errors.append(f"Invalid JSON: {e}")
-            return False
+        # Validate services configuration
+        services_valid = self._validate_services_config()
         
-        # Validate structure
-        if 'services' not in config:
-            self.errors.append("Configuration must contain 'services' key")
-            return False
-        
-        if not isinstance(config['services'], dict):
-            self.errors.append("'services' must be an object")
-            return False
-        
-        # Validate each service
-        for service_id, service_config in config['services'].items():
-            self._validate_service(service_id, service_config)
+        # Validate middleware configuration if provided
+        middleware_valid = True
+        if self.middleware_config_path:
+            middleware_valid = self._validate_middleware_config()
         
         # Log results
         if self.errors:
@@ -63,7 +49,35 @@ class ConfigValidator:
             for warning in self.warnings:
                 logger.warning(f"Validation warning: {warning}")
         
-        return len(self.errors) == 0
+        return len(self.errors) == 0 and services_valid and middleware_valid
+    
+    def _validate_services_config(self) -> bool:
+        """Validate services configuration"""
+        try:
+            # Load configuration
+            with open(self.config_path, 'r') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            self.errors.append(f"Services configuration file not found: {self.config_path}")
+            return False
+        except json.JSONDecodeError as e:
+            self.errors.append(f"Invalid JSON in services config: {e}")
+            return False
+        
+        # Validate structure
+        if 'services' not in config:
+            self.errors.append("Services configuration must contain 'services' key")
+            return False
+        
+        if not isinstance(config['services'], dict):
+            self.errors.append("'services' must be an object")
+            return False
+        
+        # Validate each service
+        for service_id, service_config in config['services'].items():
+            self._validate_service(service_id, service_config)
+        
+        return True
     
     def _validate_service(self, service_id: str, service_config: Dict[str, Any]):
         """Validate a single service configuration"""
@@ -170,6 +184,75 @@ class ConfigValidator:
                 for source, target in step['output_mapping'].items():
                     available_keys.add(target)
     
+    def _validate_middleware_config(self) -> bool:
+        """Validate middleware configuration"""
+        try:
+            # Load configuration
+            with open(self.middleware_config_path, 'r') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            self.warnings.append(f"Middleware configuration file not found: {self.middleware_config_path}")
+            return True  # Not an error, middleware config is optional
+        except json.JSONDecodeError as e:
+            self.errors.append(f"Invalid JSON in middleware config: {e}")
+            return False
+        
+        # Validate structure
+        if 'middlewares' not in config:
+            self.warnings.append("Middleware configuration should contain 'middlewares' key")
+        
+        if 'middlewares' in config:
+            if not isinstance(config['middlewares'], dict):
+                self.errors.append("'middlewares' must be an object")
+                return False
+            
+            # Validate each middleware
+            orders_used = {}
+            for name, middleware_config in config['middlewares'].items():
+                self._validate_middleware(name, middleware_config, orders_used)
+        
+        return True
+    
+    def _validate_middleware(self, name: str, config: Dict[str, Any], orders_used: Dict[int, str]):
+        """Validate a single middleware configuration"""
+        
+        # Check required fields
+        if 'module' not in config:
+            self.errors.append(f"Middleware '{name}': Missing 'module' field")
+        
+        if 'class' not in config:
+            self.errors.append(f"Middleware '{name}': Missing 'class' field")
+        
+        # Check order conflicts
+        if 'order' in config:
+            order = config['order']
+            if order in orders_used:
+                self.warnings.append(
+                    f"Middleware '{name}': Order {order} already used by '{orders_used[order]}'"
+                )
+            else:
+                orders_used[order] = name
+        
+        # Validate module can be imported
+        if 'module' in config:
+            module_name = config['module']
+            class_name = config.get('class', '')
+            
+            try:
+                module = importlib.import_module(module_name)
+                if class_name and not hasattr(module, class_name):
+                    self.errors.append(
+                        f"Middleware '{name}': Class '{class_name}' not found in module '{module_name}'"
+                    )
+            except ImportError as e:
+                self.errors.append(
+                    f"Middleware '{name}': Cannot import module '{module_name}': {e}"
+                )
+        
+        # Validate enabled flag
+        if 'enabled' in config and not isinstance(config['enabled'], bool):
+            self.errors.append(f"Middleware '{name}': 'enabled' must be a boolean")
+    
     def get_report(self) -> Dict[str, Any]:
         """
         Get a detailed validation report
@@ -186,17 +269,18 @@ class ConfigValidator:
         }
 
 
-def validate_config(config_path: str) -> bool:
+def validate_config(config_path: str, middleware_config_path: Optional[str] = None) -> bool:
     """
-    Convenience function to validate a configuration file
+    Convenience function to validate configuration files
     
     Args:
-        config_path: Path to the configuration file
+        config_path: Path to the services configuration file
+        middleware_config_path: Optional path to middleware configuration file
         
     Returns:
         True if valid, False otherwise
     """
-    validator = ConfigValidator(config_path)
+    validator = ConfigValidator(config_path, middleware_config_path)
     is_valid = validator.validate()
     
     report = validator.get_report()

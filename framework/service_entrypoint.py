@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 from .service_registry import ServiceRegistry
-from .middleware import MiddlewarePipeline
+from .middleware_pipeline import MiddlewarePipeline
+from .middleware_registry import MiddlewareRegistry
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,16 +11,23 @@ class ServiceEntrypoint:
     """Main microservice entrypoint for steps-based services"""
     
     def __init__(self, registry: ServiceRegistry, 
-                 middleware_pipeline: Optional[MiddlewarePipeline] = None):
+                 middleware_pipeline: Optional[MiddlewarePipeline] = None,
+                 middleware_config_path: Optional[str] = 'middlewares.json'):
         """
         Initialize the service entrypoint
         
         Args:
             registry: The service registry for executor lookup
-            middleware_pipeline: Optional middleware pipeline
+            middleware_pipeline: Optional pre-configured middleware pipeline
+            middleware_config_path: Path to middleware configuration file
         """
         self.registry = registry
-        self.middleware_pipeline = middleware_pipeline or MiddlewarePipeline()
+        
+        # Use provided pipeline or create new one with auto-registration
+        if middleware_pipeline:
+            self.middleware_pipeline = middleware_pipeline
+        else:
+            self.middleware_pipeline = self._build_pipeline(middleware_config_path)
     
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -68,3 +76,33 @@ class ServiceEntrypoint:
         except Exception as e:
             logger.error(f"Service execution failed: {e}")
             raise
+    
+    def _build_pipeline(self, middleware_config_path: Optional[str]) -> MiddlewarePipeline:
+        """
+        Build middleware pipeline from configuration
+        
+        Args:
+            middleware_config_path: Path to middleware configuration file
+            
+        Returns:
+            Configured middleware pipeline
+        """
+        pipeline = MiddlewarePipeline()
+        
+        if middleware_config_path:
+            try:
+                # Create middleware registry and load configuration
+                middleware_registry = MiddlewareRegistry(middleware_config_path)
+                
+                # Get all enabled middlewares sorted by order
+                middlewares = middleware_registry.get_enabled_middlewares()
+                
+                # Add each middleware to the pipeline
+                for middleware in middlewares:
+                    pipeline.add_middleware(middleware)
+                
+                logger.info(f"Loaded {len(middlewares)} middleware(s) from {middleware_config_path}")
+            except Exception as e:
+                logger.warning(f"Failed to load middleware configuration: {e}")
+        
+        return pipeline

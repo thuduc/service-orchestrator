@@ -1,8 +1,8 @@
 from typing import Dict, Any
-from framework.component import Component
+from framework.base_component import BaseComponent
 
 
-class TransformationComponent(Component):
+class TransformationComponent(BaseComponent):
     """Component for data transformation"""
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -12,7 +12,7 @@ class TransformationComponent(Component):
         Args:
             config: Optional configuration parameters
         """
-        self.config = config or {}
+        super().__init__(config)
         self.transform_type = self.config.get('transform_type', 'uppercase')
     
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -23,23 +23,39 @@ class TransformationComponent(Component):
             context: Input context dictionary
             
         Returns:
-            Dictionary with transformed data
+            Updated context with transformed data
         """
-        data = context.get('data', {})
+        # Set up logger by calling parent's execute
+        super().execute(context)
+        
+        # Use validated_data if available, otherwise use data
+        data = context.get('validated_data', context.get('data', {}))
+        
+        self.log_info(f"Starting {self.transform_type} transformation")
         
         # Apply transformations based on type
         if self.transform_type == 'uppercase':
             transformed = self._uppercase_transform(data)
+            self.log_info("Applied uppercase transformation")
         elif self.transform_type == 'normalize':
             transformed = self._normalize_transform(data)
+            self.log_info("Applied normalization transformation")
         else:
             transformed = data
+            self.log_info("No transformation applied (unknown type)")
         
-        return {
-            "transformed_data": transformed,
-            "transform_type": self.transform_type,
-            "original_keys": list(data.keys()) if isinstance(data, dict) else []
-        }
+        # Update context with transformation results
+        context['transformed_data'] = transformed
+        context['transform_type'] = self.transform_type
+        context['original_keys'] = list(data.keys()) if isinstance(data, dict) else []
+        
+        # Also store as 'processed' for next steps
+        context['processed'] = transformed
+        
+        if isinstance(data, dict) and isinstance(transformed, dict):
+            self.log_info(f"Transformed {len(data)} fields into {len(transformed)} fields")
+        
+        return context
     
     def _uppercase_transform(self, data: Any) -> Any:
         """Transform string values to uppercase"""

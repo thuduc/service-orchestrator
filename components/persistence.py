@@ -1,10 +1,10 @@
 from typing import Dict, Any
-from framework.component import Component
+from framework.base_component import BaseComponent
 import json
 import os
 
 
-class PersistenceComponent(Component):
+class PersistenceComponent(BaseComponent):
     """Component for data persistence"""
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -14,7 +14,7 @@ class PersistenceComponent(Component):
         Args:
             config: Optional configuration parameters
         """
-        self.config = config or {}
+        super().__init__(config)
         self.output_dir = self.config.get('output_dir', './output')
         self.format = self.config.get('format', 'json')
     
@@ -26,14 +26,29 @@ class PersistenceComponent(Component):
             context: Input context dictionary
             
         Returns:
-            Dictionary with persistence results
+            Updated context with persistence results
         """
-        print('Hi from Persistence Component')
-        # Get data to persist
-        data_to_persist = context.get('processed', context)
+        # Set up logger by calling parent's execute
+        super().execute(context)
+        
+        self.log_info("Starting data persistence")
+        
+        # Get data to persist - prefer 'processed' key, fallback to full context
+        if 'processed' in context:
+            data_to_persist = context['processed']
+            self.log_info("Persisting 'processed' data")
+        elif 'transformed_data' in context:
+            data_to_persist = context['transformed_data']
+            self.log_info("Persisting 'transformed_data'")
+        else:
+            # Persist the entire context excluding internal keys
+            data_to_persist = {k: v for k, v in context.items() 
+                             if not k.startswith('_')}
+            self.log_info("Persisting full context (excluding internal keys)")
         
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
+        self.log_debug(f"Output directory: {self.output_dir}")
         
         # Generate filename
         request_id = context.get('request_id', 'unknown')
@@ -49,15 +64,18 @@ class PersistenceComponent(Component):
                 with open(filepath, 'w') as f:
                     f.write(str(data_to_persist))
             
-            return {
-                "persisted": True,
-                "filepath": filepath,
-                "size": os.path.getsize(filepath),
-                "format": self.format
-            }
+            # Add persistence results to context
+            context['persisted'] = True
+            context['filepath'] = filepath
+            context['size'] = os.path.getsize(filepath)
+            context['persist_format'] = self.format
+            
+            self.log_info(f"Successfully persisted data to {filepath} ({context['size']} bytes)")
+            
         except Exception as e:
-            return {
-                "persisted": False,
-                "error": str(e),
-                "format": self.format
-            }
+            context['persisted'] = False
+            context['persist_error'] = str(e)
+            context['persist_format'] = self.format
+            self.log_error(f"Failed to persist data: {str(e)}")
+        
+        return context

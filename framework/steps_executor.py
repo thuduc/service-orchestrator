@@ -1,7 +1,6 @@
 from typing import Dict, Any, List, Optional
 import importlib
 import logging
-from .step_context import StepContext
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +35,6 @@ class StepsExecutor:
                 self.steps.append({
                     'name': step_name,
                     'component': component_instance,
-                    'input_mapping': step_config.get('input_mapping', {}),
-                    'output_mapping': step_config.get('output_mapping', {}),
                     'on_error': step_config.get('on_error', 'fail_fast'),
                     'fallback_output': step_config.get('fallback_output', {})
                 })
@@ -54,30 +51,20 @@ class StepsExecutor:
             context: Initial execution context
             
         Returns:
-            Final context after all steps have executed
+            The same context after all steps have executed (modified in place)
         """
-        step_context = StepContext(context)
-        
         for i, step in enumerate(self.steps):
             step_name = step['name']
             logger.info(f"Executing step {i+1}/{len(self.steps)}: {step_name}")
             
             try:
-                # Get step input based on mapping
-                step_input = step_context.get_step_input(
-                    step_name,
-                    step['input_mapping']
-                )
+                # Execute the component with the shared context
+                # Each component modifies the context in place
+                result = step['component'].execute(context)
                 
-                # Execute the component
-                step_output = step['component'].execute(step_input)
-                
-                # Update context with step output
-                step_context.update_with_step_output(
-                    step_name,
-                    step_output,
-                    step['output_mapping']
-                )
+                # Merge result back into context if it's a dictionary
+                if isinstance(result, dict):
+                    context.update(result)
                 
                 logger.info(f"Step '{step_name}' completed successfully")
                 
@@ -91,14 +78,10 @@ class StepsExecutor:
                     logger.warning(f"Skipping failed step '{step_name}'")
                     # Apply fallback output if configured
                     if step['fallback_output']:
-                        step_context.update_with_step_output(
-                            step_name,
-                            step['fallback_output'],
-                            {}  # No mapping for fallback
-                        )
+                        context.update(step['fallback_output'])
                     continue
                 elif step['on_error'] == 'compensate':
                     # TODO: Implement compensation logic in Phase 3
                     raise NotImplementedError("Compensation not yet implemented")
         
-        return step_context.get_final_context()
+        return context

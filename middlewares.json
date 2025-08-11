@@ -9,7 +9,12 @@
         "log_level": "INFO",
         "log_request": true,
         "log_response": true,
-        "log_errors": true
+        "log_errors": true,
+        "provide_context_logger": true,
+        "destinations": ["stdout", "file"],
+        "file_path": "logs/service.log",
+        "log_format": "[%(levelname)s] %(asctime)s | %(name)s | %(message)s",
+        "date_format": "%Y-%m-%d %H:%M:%S"
       }
     },
     "validation": {

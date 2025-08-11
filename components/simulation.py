@@ -1,8 +1,8 @@
 from typing import Dict, Any
-from framework.component import Component
+from framework.base_component import BaseComponent
 
 
-class SimulationComponent(Component):
+class SimulationComponent(BaseComponent):
     """Component for simulation processing"""
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -12,7 +12,7 @@ class SimulationComponent(Component):
         Args:
             config: Optional configuration parameters
         """
-        self.config = config or {}
+        super().__init__(config)
     
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -24,7 +24,10 @@ class SimulationComponent(Component):
         Returns:
             Dictionary with execution results
         """
-        print('Hi from Simulation Component')
+        # Set up logger by calling parent's execute
+        super().execute(context)
+        
+        self.log_info('Hi from Simulation Component')
         return {
             "status": "success",
             "message": "Hello World from Simulation Component",

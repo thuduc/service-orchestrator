@@ -101,9 +101,6 @@ class ConfigValidator:
         # Validate each step
         for i, step in enumerate(service_config['steps']):
             self._validate_step(service_id, i, step, step_names)
-        
-        # Validate input/output mappings consistency
-        self._validate_mappings(service_id, service_config['steps'])
     
     def _validate_step(self, service_id: str, index: int, 
                       step: Dict[str, Any], step_names: Set[str]):
@@ -161,29 +158,6 @@ class ConfigValidator:
                     f"Service '{service_id}' step {index}: "
                     f"Using 'skip' without 'fallback_output' may cause issues"
                 )
-    
-    def _validate_mappings(self, service_id: str, steps: List[Dict[str, Any]]):
-        """Validate input/output mappings between steps"""
-        
-        available_keys: Set[str] = set()
-        
-        for i, step in enumerate(steps):
-            step_name = step.get('name', f'step_{i+1}')
-            
-            # Check input mapping references available keys
-            if 'input_mapping' in step:
-                for target, source in step['input_mapping'].items():
-                    if i > 0 and source not in available_keys:
-                        self.warnings.append(
-                            f"Service '{service_id}' step '{step_name}': "
-                            f"Input mapping references '{source}' which may not be available"
-                        )
-            
-            # Add output mapping keys to available keys
-            if 'output_mapping' in step:
-                for source, target in step['output_mapping'].items():
-                    available_keys.add(target)
-    
     def _validate_middleware_config(self) -> bool:
         """Validate middleware configuration"""
         try:

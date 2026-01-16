@@ -1,0 +1,67 @@
+{
+  "global_config": {
+    "debug_mode": true,
+    "environment": "test"
+  },
+  "middlewares": {
+    "test_logging": {
+      "module": "middlewares.logging",
+      "class": "LoggingMiddleware",
+      "enabled": true,
+      "order": 10,
+      "config": {
+        "log_level": "DEBUG",
+        "log_request": true,
+        "log_response": true,
+        "log_errors": true,
+        "provide_context_logger": true,
+        "destinations": ["stdout"],
+        "log_format": "%(asctime)s - TEST - %(levelname)s - %(message)s"
+      }
+    },
+    "test_validation": {
+      "module": "middlewares.validation",
+      "class": "ValidationMiddleware",
+      "enabled": true,
+      "order": 20,
+      "config": {
+        "validate_request": true,
+        "validate_response": false,
+        "strict_mode": false,
+        "required_fields": ["service_id"],
+        "max_payload_size": 1048576
+      }
+    },
+    "test_authentication": {
+      "module": "middlewares.authentication",
+      "class": "AuthenticationMiddleware",
+      "enabled": false,
+      "order": 5,
+      "config": {
+        "auth_type": "api_key",
+        "required_permissions": ["read", "write"]
+      }
+    },
+    "test_rate_limiting": {
+      "module": "middlewares.rate_limiting",
+      "class": "RateLimitingMiddleware",
+      "enabled": false,
+      "order": 15,
+      "config": {
+        "requests_per_minute": 100,
+        "burst_limit": 10
+      }
+    },
+    "test_metrics": {
+      "module": "middlewares.metrics",
+      "class": "MetricsMiddleware",
+      "enabled": true,
+      "order": 30,
+      "config": {
+        "collect_timing": true,
+        "collect_counters": true,
+        "metrics_endpoint": "/metrics"
+      }
+    }
+  }
+}

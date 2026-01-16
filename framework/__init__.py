@@ -1,13 +1,16 @@
 from .component import Component
 from .service_registry import ServiceRegistry
 from .service_entrypoint import ServiceEntrypoint
-from .middleware import Middleware
-from .middleware_pipeline import MiddlewarePipeline
+from .interceptor import Interceptor
+from .interceptor_pipeline import InterceptorPipeline, InterceptorShortCircuit
+from .interceptor_registry import InterceptorRegistry
 
 __all__ = [
     'Component',
     'ServiceRegistry',
     'ServiceEntrypoint',
-    'Middleware',
-    'MiddlewarePipeline'
+    'Interceptor',
+    'InterceptorPipeline',
+    'InterceptorShortCircuit',
+    'InterceptorRegistry'
 ]

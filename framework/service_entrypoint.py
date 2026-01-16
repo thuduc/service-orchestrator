@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
 from .service_registry import ServiceRegistry
-from .middleware_pipeline import MiddlewarePipeline
-from .middleware_registry import MiddlewareRegistry
+from .interceptor_pipeline import InterceptorPipeline
+from .interceptor_registry import InterceptorRegistry
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,36 +9,36 @@ logger = logging.getLogger(__name__)
 
 class ServiceEntrypoint:
     """Main microservice entrypoint for steps-based services"""
-    
-    def __init__(self, registry: ServiceRegistry, 
-                 middleware_pipeline: Optional[MiddlewarePipeline] = None,
-                 middleware_config_path: Optional[str] = 'middlewares.json'):
+
+    def __init__(self, registry: ServiceRegistry,
+                 interceptor_pipeline: Optional[InterceptorPipeline] = None,
+                 interceptor_config_path: Optional[str] = 'interceptors.json'):
         """
         Initialize the service entrypoint
-        
+
         Args:
             registry: The service registry for executor lookup
-            middleware_pipeline: Optional pre-configured middleware pipeline
-            middleware_config_path: Path to middleware configuration file
+            interceptor_pipeline: Optional pre-configured interceptor pipeline
+            interceptor_config_path: Path to interceptor configuration file
         """
         self.registry = registry
-        
+
         # Use provided pipeline or create new one with auto-registration
-        if middleware_pipeline:
-            self.middleware_pipeline = middleware_pipeline
+        if interceptor_pipeline:
+            self.interceptor_pipeline = interceptor_pipeline
         else:
-            self.middleware_pipeline = self._build_pipeline(middleware_config_path)
-    
+            self.interceptor_pipeline = self._build_pipeline(interceptor_config_path)
+
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main execution method with middleware support
-        
+        Main execution method with interceptor support
+
         Args:
             context: Request context containing at minimum 'service_id'
-            
+
         Returns:
             Response dictionary from the service execution
-            
+
         Raises:
             KeyError: If 'service_id' is not in context
             Exception: Any exception from service execution
@@ -46,63 +46,63 @@ class ServiceEntrypoint:
         # Extract service_id from context
         if 'service_id' not in context:
             raise KeyError("'service_id' is required in the context")
-        
+
         service_id = context['service_id']
         logger.info(f"Executing service: {service_id}")
-        
+
         try:
             # Get steps executor from registry
             executor = self.registry.get_executor(service_id)
-            
-            # Create a wrapper to make executor compatible with middleware
+
+            # Create a wrapper to make executor compatible with interceptor pipeline
             class ExecutorWrapper:
                 def __init__(self, steps_executor):
                     self._executor = steps_executor
-                
+
                 def execute(self, ctx):
                     return self._executor.execute(ctx)
-            
+
             wrapper = ExecutorWrapper(executor)
-            
-            # Execute through middleware pipeline
-            result = self.middleware_pipeline.execute(context, wrapper)
-            
+
+            # Execute through interceptor pipeline
+            result = self.interceptor_pipeline.execute(context, wrapper)
+
             logger.info(f"Service '{service_id}' executed successfully")
             return result
-            
+
         except KeyError as e:
             logger.error(f"Service not found: {e}")
             raise
         except Exception as e:
             logger.error(f"Service execution failed: {e}")
             raise
-    
-    def _build_pipeline(self, middleware_config_path: Optional[str]) -> MiddlewarePipeline:
+
+    def _build_pipeline(self, interceptor_config_path: Optional[str]) -> InterceptorPipeline:
         """
-        Build middleware pipeline from configuration
-        
+        Build interceptor pipeline from configuration
+
         Args:
-            middleware_config_path: Path to middleware configuration file
-            
+            interceptor_config_path: Path to interceptor configuration file
+
         Returns:
-            Configured middleware pipeline
+            Configured interceptor pipeline
         """
-        pipeline = MiddlewarePipeline()
-        
-        if middleware_config_path:
+        pipeline = InterceptorPipeline()
+
+        if interceptor_config_path:
             try:
-                # Create middleware registry and load configuration
-                middleware_registry = MiddlewareRegistry(middleware_config_path)
-                
-                # Get all enabled middlewares sorted by order
-                middlewares = middleware_registry.get_enabled_middlewares()
-                
-                # Add each middleware to the pipeline
-                for middleware in middlewares:
-                    pipeline.add_middleware(middleware)
-                
-                logger.info(f"Loaded {len(middlewares)} middleware(s) from {middleware_config_path}")
+                # Create interceptor registry and load configuration
+                interceptor_registry = InterceptorRegistry(interceptor_config_path)
+
+                # Get all enabled interceptors sorted by order
+                interceptors = interceptor_registry.get_enabled_interceptors()
+
+                # Add each interceptor to the pipeline
+                for interceptor in interceptors:
+                    pipeline.add_interceptor(interceptor)
+
+                logger.info(f"Loaded {len(interceptors)} interceptor(s) from {interceptor_config_path}")
             except Exception as e:
-                logger.warning(f"Failed to load middleware configuration: {e}")
-        
+                logger.warning(f"Failed to load interceptor configuration: {e}")
+
         return pipeline

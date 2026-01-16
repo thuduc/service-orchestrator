@@ -1,0 +1,7 @@
+#!/Users/duc/projects/claude/github/service-orchestrator/test_env/bin/python3.12
+import sys
+from locust_cloud.cloud import deprecated_main
+if __name__ == '__main__':
+    if sys.argv[0].endswith('.exe'):
+        sys.argv[0] = sys.argv[0][:-4]
+    sys.exit(deprecated_main())

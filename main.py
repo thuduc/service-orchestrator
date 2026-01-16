@@ -24,25 +24,25 @@ def main():
     # Setup logging
     setup_logging()
     logger = logging.getLogger(__name__)
-    
+
     try:
         # Validate configurations
         logger.info("Validating configurations...")
-        if not validate_config('services.json', 'middlewares.json'):
+        if not validate_config('services.json', 'interceptors.json'):
             logger.error("Configuration validation failed")
             sys.exit(1)
-        
+
         # Initialize the service registry with configuration
         logger.info("Initializing service registry...")
         registry = ServiceRegistry(config_path='services.json')
-        
-        # Create service entrypoint with auto-configured middleware
-        logger.info("Creating service entrypoint with configured middleware...")
+
+        # Create service entrypoint with auto-configured interceptors
+        logger.info("Creating service entrypoint with configured interceptors...")
         service = ServiceEntrypoint(
             registry=registry,
-            middleware_config_path='middlewares.json'
+            interceptor_config_path='interceptors.json'
         )
-        
+
         # Display registered services
         logger.info("\n=== Registered Services ===")
         services = registry.list_services()
@@ -52,7 +52,7 @@ def main():
             info = registry.get_service_info(service_id)
             for step in info['steps']:
                 logger.info(f"    - Step '{step['name']}': {step['module']}.{step['class']}")
-        
+
         # Example 1: Execute Pre-Calibration Service (single-step)
         logger.info("\n=== Example 1: Pre-Calibration Service (Single-Step) ===")
         pre_calibration_context = {
@@ -63,10 +63,10 @@ def main():
                 "pressure": 101.325
             }
         }
-        
+
         result1 = service.execute(pre_calibration_context)
         logger.info(f"Pre-Calibration Result: {result1}")
-        
+
         # Example 2: Execute Simulation Service (single-step)
         logger.info("\n=== Example 2: Simulation Service (Single-Step) ===")
         simulation_context = {
@@ -80,10 +80,10 @@ def main():
                 }
             }
         }
-        
+
         result2 = service.execute(simulation_context)
         logger.info(f"Simulation Result: {result2}")
-        
+
         # Example 3: Execute Data Processing Service (multi-step)
         logger.info("\n=== Example 3: Data Processing Service (Multi-Step) ===")
         data_processing_context = {
@@ -95,10 +95,10 @@ def main():
                 "description": "sample data for processing"
             }
         }
-        
+
         result3 = service.execute(data_processing_context)
         logger.info(f"Data Processing Result: {result3}")
-        
+
         # Example 4: Test validation failure in multi-step service
         logger.info("\n=== Example 4: Data Processing with Validation Failure ===")
         invalid_data_context = {
@@ -108,13 +108,13 @@ def main():
                 "name": "incomplete data"
             }
         }
-        
+
         try:
             result4 = service.execute(invalid_data_context)
             logger.info(f"Result: {result4}")
         except Exception as e:
             logger.error(f"Processing failed as expected: {e}")
-        
+
         # Example 5: Handle missing service_id
         logger.info("\n=== Example 5: Error Handling - Missing service_id ===")
         try:
@@ -125,7 +125,7 @@ def main():
             service.execute(invalid_context)
         except KeyError as e:
             logger.error(f"Expected error: {e}")
-        
+
         # Example 6: Handle unknown service
         logger.info("\n=== Example 6: Error Handling - Unknown service ===")
         try:
@@ -136,9 +136,9 @@ def main():
             service.execute(unknown_service_context)
         except KeyError as e:
             logger.error(f"Expected error: {e}")
-        
+
         logger.info("\n=== All tests completed successfully ===")
-        
+
     except Exception as e:
         logger.error(f"Application error: {e}", exc_info=True)
         sys.exit(1)

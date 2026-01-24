@@ -96,12 +96,12 @@ context = {
 result = service.execute(context)
 ```
 
-### Middleware
+### Interceptors
 
-The framework supports middleware for cross-cutting concerns:
+The framework supports interceptors for cross-cutting concerns:
 
-- **LoggingMiddleware**: Logs component execution details
-- Custom middleware can be added by implementing the `Middleware` interface
+- **LoggingInterceptor**: Logs component execution details
+- Custom interceptors can be added by implementing the `Interceptor` interface
 
 ## Configuration
 
@@ -115,6 +115,33 @@ Services are configured in `services.json`:
       "class": "ClassName",
       "config": {
         "param1": "value1"
+      }
+    }
+  }
+}
+```
+
+### Interceptor Configuration
+
+Interceptors are configured in `interceptors.json`:
+
+```json
+{
+  "interceptors": {
+    "logging": {
+      "module": "interceptors.logging",
+      "class": "LoggingInterceptor",
+      "enabled": true,
+      "order": 1
+    },
+    "validation": {
+      "module": "interceptors.validation",
+      "class": "ValidationInterceptor",
+      "enabled": true,
+      "order": 2,
+      "scope": {
+        "include_services": ["service-a", "service-b"],
+        "exclude_services": ["service-b"]
       }
     }
   }

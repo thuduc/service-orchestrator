@@ -21,6 +21,7 @@ class ConfigValidator:
         self.interceptor_config_path = interceptor_config_path
         self.errors: List[str] = []
         self.warnings: List[str] = []
+        self.known_services: Set[str] = set()
 
     def validate(self) -> bool:
         """
@@ -72,6 +73,8 @@ class ConfigValidator:
         if not isinstance(config['services'], dict):
             self.errors.append("'services' must be an object")
             return False
+
+        self.known_services = set(config['services'].keys())
 
         # Validate each service
         for service_id, service_config in config['services'].items():
@@ -163,6 +166,8 @@ class ConfigValidator:
         """Validate interceptor configuration"""
         try:
             # Load configuration
+            if self.interceptor_config_path is None:
+                return True
             with open(self.interceptor_config_path, 'r') as f:
                 config = json.load(f)
         except FileNotFoundError:
@@ -227,6 +232,61 @@ class ConfigValidator:
         # Validate enabled flag
         if 'enabled' in config and not isinstance(config['enabled'], bool):
             self.errors.append(f"Interceptor '{name}': 'enabled' must be a boolean")
+
+        if 'scope' in config:
+            scope = config['scope']
+            if not isinstance(scope, dict):
+                self.errors.append(f"Interceptor '{name}': 'scope' must be an object")
+                return
+
+            include_services = scope.get('include_services')
+            exclude_services = scope.get('exclude_services')
+
+            if include_services is not None:
+                if not isinstance(include_services, list) or not all(isinstance(item, str) for item in include_services):
+                    self.errors.append(
+                        f"Interceptor '{name}': 'scope.include_services' must be an array of strings"
+                    )
+                elif len(set(include_services)) != len(include_services):
+                    self.warnings.append(
+                        f"Interceptor '{name}': 'scope.include_services' contains duplicates"
+                    )
+
+            if exclude_services is not None:
+                if not isinstance(exclude_services, list) or not all(isinstance(item, str) for item in exclude_services):
+                    self.errors.append(
+                        f"Interceptor '{name}': 'scope.exclude_services' must be an array of strings"
+                    )
+                elif len(set(exclude_services)) != len(exclude_services):
+                    self.warnings.append(
+                        f"Interceptor '{name}': 'scope.exclude_services' contains duplicates"
+                    )
+
+            if self.known_services:
+                if isinstance(include_services, list):
+                    for service_id in include_services:
+                        if service_id not in self.known_services:
+                            self.errors.append(
+                                f"Interceptor '{name}': Unknown service_id in 'scope.include_services': '{service_id}'"
+                            )
+                if isinstance(exclude_services, list):
+                    for service_id in exclude_services:
+                        if service_id not in self.known_services:
+                            self.errors.append(
+                                f"Interceptor '{name}': Unknown service_id in 'scope.exclude_services': '{service_id}'"
+                            )
+
+            if (
+                isinstance(include_services, list)
+                and include_services
+                and isinstance(exclude_services, list)
+                and exclude_services
+            ):
+                remaining = set(include_services) - set(exclude_services)
+                if not remaining:
+                    self.warnings.append(
+                        f"Interceptor '{name}': 'scope.exclude_services' removes all included services"
+                    )
 
     def get_report(self) -> Dict[str, Any]:
         """

@@ -22,21 +22,16 @@ class TestServiceEntrypoint:
         registry = Mock()
         mock_pipeline_instance = Mock()
         mock_registry_instance = Mock()
-        mock_interceptor1 = Mock()
-        mock_interceptor2 = Mock()
 
         mock_pipeline.return_value = mock_pipeline_instance
         mock_interceptor_registry.return_value = mock_registry_instance
-        mock_registry_instance.get_enabled_interceptors.return_value = [mock_interceptor1, mock_interceptor2]
 
         entrypoint = ServiceEntrypoint(registry, interceptor_config_path="test_interceptors.json")
 
         assert entrypoint.registry == registry
         assert entrypoint.interceptor_pipeline == mock_pipeline_instance
         mock_interceptor_registry.assert_called_once_with("test_interceptors.json")
-        mock_registry_instance.get_enabled_interceptors.assert_called_once()
-        mock_pipeline_instance.add_interceptor.assert_any_call(mock_interceptor1)
-        mock_pipeline_instance.add_interceptor.assert_any_call(mock_interceptor2)
+        mock_pipeline_instance.add_interceptor.assert_not_called()
 
     @patch('framework.service_entrypoint.InterceptorPipeline')
     def test_init_no_interceptor_config(self, mock_pipeline):
@@ -149,34 +144,28 @@ class TestServiceEntrypoint:
     @patch('framework.service_entrypoint.InterceptorPipeline')
     @patch('framework.service_entrypoint.InterceptorRegistry')
     def test_build_pipeline_success(self, mock_interceptor_registry, mock_pipeline):
-        """Test successful pipeline building."""
+        """Test interceptor registry initialization."""
         registry = Mock()
         mock_pipeline_instance = Mock()
         mock_registry_instance = Mock()
-        mock_interceptor1 = Mock()
-        mock_interceptor2 = Mock()
 
         mock_pipeline.return_value = mock_pipeline_instance
         mock_interceptor_registry.return_value = mock_registry_instance
-        mock_registry_instance.get_enabled_interceptors.return_value = [mock_interceptor1, mock_interceptor2]
 
         entrypoint = ServiceEntrypoint(registry, interceptor_config_path="interceptors.json")
 
-        # Verify pipeline was built correctly
         mock_interceptor_registry.assert_called_once_with("interceptors.json")
-        mock_pipeline_instance.add_interceptor.assert_any_call(mock_interceptor1)
-        mock_pipeline_instance.add_interceptor.assert_any_call(mock_interceptor2)
+        mock_pipeline_instance.add_interceptor.assert_not_called()
 
     @patch('framework.service_entrypoint.InterceptorPipeline')
     def test_build_pipeline_no_config(self, mock_pipeline):
-        """Test pipeline building with no configuration file."""
+        """Test initialization with no configuration file."""
         registry = Mock()
         mock_pipeline_instance = Mock()
         mock_pipeline.return_value = mock_pipeline_instance
 
         entrypoint = ServiceEntrypoint(registry, interceptor_config_path=None)
 
-        # Should create empty pipeline
         mock_pipeline.assert_called_once()
         mock_pipeline_instance.add_interceptor.assert_not_called()
 

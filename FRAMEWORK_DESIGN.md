@@ -66,76 +66,89 @@ class ServiceEntrypoint:
 
 ## Design Patterns & Cross-Cutting Concerns
 
-### 1. Middleware Pipeline Pattern
+### 1. Interceptor Pipeline Pattern
 
 Allows adding behaviors before and after component execution:
 
 ```python
-class Middleware(ABC):
-    @abstractmethod
-    def process(self, context: Dict[str, Any], next_handler: Callable) -> Dict[str, Any]:
-        pass
+class Interceptor(ABC):
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        return context
 
-class MiddlewarePipeline:
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+        return result
+
+    def on_error(self, context: Dict[str, Any], error: Exception) -> Optional[Dict[str, Any]]:
+        return None
+
+class InterceptorPipeline:
     def __init__(self):
-        self.middlewares = []
-    
-    def add_middleware(self, middleware: Middleware):
-        self.middlewares.append(middleware)
-    
+        self.interceptors = []
+
+    def add_interceptor(self, interceptor: Interceptor):
+        self.interceptors.append(interceptor)
+
     def execute(self, context: Dict[str, Any], component: Component) -> Dict[str, Any]:
-        # Build and execute middleware chain
+        # Execute before/after/on_error in pipeline
         pass
 ```
 
-### 2. Built-in Middleware Components
+### 2. Built-in Interceptors
 
-#### Logging Middleware
+#### Logging Interceptor
 ```python
-class LoggingMiddleware(Middleware):
+class LoggingInterceptor(Interceptor):
     """Logs component execution details"""
-    def process(self, context: Dict[str, Any], next_handler: Callable) -> Dict[str, Any]:
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # Log before execution
-        # Execute component
+        return context
+
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
         # Log after execution
+        return result
+
+    def on_error(self, context: Dict[str, Any], error: Exception) -> Optional[Dict[str, Any]]:
         # Log exceptions
-        pass
+        return None
 ```
 
-#### Validation Middleware
+#### Validation Interceptor
 ```python
-class ValidationMiddleware(Middleware):
+class ValidationInterceptor(Interceptor):
     """Validates input/output against schemas"""
-    def __init__(self, schema_registry: SchemaRegistry):
-        self.schema_registry = schema_registry
-    
-    def process(self, context: Dict[str, Any], next_handler: Callable) -> Dict[str, Any]:
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # Validate input
-        # Execute component
+        return context
+
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
         # Validate output
-        pass
+        return result
 ```
 
-#### Metrics Middleware
+#### Metrics Interceptor
 ```python
-class MetricsMiddleware(Middleware):
+class MetricsInterceptor(Interceptor):
     """Collects execution metrics"""
-    def process(self, context: Dict[str, Any], next_handler: Callable) -> Dict[str, Any]:
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # Record start time
-        # Execute component
+        return context
+
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
         # Record execution time, success/failure
-        pass
+        return result
 ```
 
-#### Circuit Breaker Middleware
+#### Circuit Breaker Interceptor
 ```python
-class CircuitBreakerMiddleware(Middleware):
+class CircuitBreakerInterceptor(Interceptor):
     """Implements circuit breaker pattern for fault tolerance"""
-    def process(self, context: Dict[str, Any], next_handler: Callable) -> Dict[str, Any]:
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # Check circuit state
-        # Execute or fail fast
+        return context
+
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
         # Update circuit state
-        pass
+        return result
 ```
 
 ### 3. Additional Design Patterns
@@ -208,28 +221,27 @@ class CachedComponent(Component):
 }
 ```
 
-### Middleware Configuration
+### Interceptor Configuration
 ```json
 {
-  "middleware": [
-    {
-      "type": "logging",
-      "config": {
-        "level": "INFO",
-        "format": "json"
-      }
+  "interceptors": {
+    "logging": {
+      "module": "interceptors.logging",
+      "class": "LoggingInterceptor",
+      "enabled": true,
+      "order": 1
     },
-    {
-      "type": "validation",
-      "enabled": true
-    },
-    {
-      "type": "metrics",
-      "config": {
-        "export_interval": 60
+    "validation": {
+      "module": "interceptors.validation",
+      "class": "ValidationInterceptor",
+      "enabled": true,
+      "order": 2,
+      "scope": {
+        "include_services": ["service-a", "service-b"],
+        "exclude_services": ["service-b"]
       }
     }
-  ]
+  }
 }
 ```
 

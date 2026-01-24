@@ -22,12 +22,24 @@ class ServiceEntrypoint:
             interceptor_config_path: Path to interceptor configuration file
         """
         self.registry = registry
+        self._interceptor_config_path = interceptor_config_path
+        self._interceptor_registry: Optional[InterceptorRegistry] = None
+        self._pipeline_cache: Dict[str, InterceptorPipeline] = {}
 
-        # Use provided pipeline or create new one with auto-registration
+        # Use provided pipeline or prepare for interceptor config loading
         if interceptor_pipeline:
             self.interceptor_pipeline = interceptor_pipeline
+            self._interceptor_config_path = None
         else:
-            self.interceptor_pipeline = self._build_pipeline(interceptor_config_path)
+            self.interceptor_pipeline = InterceptorPipeline()
+            if interceptor_config_path:
+                try:
+                    self._interceptor_registry = InterceptorRegistry(interceptor_config_path)
+                except Exception as e:
+                    logger.warning(f"Failed to load interceptor configuration: {e}")
+                    self._interceptor_config_path = None
+            else:
+                self._interceptor_config_path = None
 
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -65,7 +77,8 @@ class ServiceEntrypoint:
             wrapper = ExecutorWrapper(executor)
 
             # Execute through interceptor pipeline
-            result = self.interceptor_pipeline.execute(context, wrapper)
+            pipeline = self._get_pipeline_for_service(service_id)
+            result = pipeline.execute(context, wrapper)  # type: ignore[arg-type]
 
             logger.info(f"Service '{service_id}' executed successfully")
             return result
@@ -77,32 +90,26 @@ class ServiceEntrypoint:
             logger.error(f"Service execution failed: {e}")
             raise
 
-    def _build_pipeline(self, interceptor_config_path: Optional[str]) -> InterceptorPipeline:
+    def _get_pipeline_for_service(self, service_id: str) -> InterceptorPipeline:
         """
-        Build interceptor pipeline from configuration
+        Get or build the interceptor pipeline for a specific service.
 
         Args:
-            interceptor_config_path: Path to interceptor configuration file
+            service_id: Service identifier to use for interceptor scoping
 
         Returns:
-            Configured interceptor pipeline
+            Interceptor pipeline scoped to the service
         """
+        if self._interceptor_config_path is None or self._interceptor_registry is None:
+            return self.interceptor_pipeline
+
+        if service_id in self._pipeline_cache:
+            return self._pipeline_cache[service_id]
+
         pipeline = InterceptorPipeline()
+        interceptors = self._interceptor_registry.get_enabled_interceptors_for_service(service_id)
+        for interceptor in interceptors:
+            pipeline.add_interceptor(interceptor)
 
-        if interceptor_config_path:
-            try:
-                # Create interceptor registry and load configuration
-                interceptor_registry = InterceptorRegistry(interceptor_config_path)
-
-                # Get all enabled interceptors sorted by order
-                interceptors = interceptor_registry.get_enabled_interceptors()
-
-                # Add each interceptor to the pipeline
-                for interceptor in interceptors:
-                    pipeline.add_interceptor(interceptor)
-
-                logger.info(f"Loaded {len(interceptors)} interceptor(s) from {interceptor_config_path}")
-            except Exception as e:
-                logger.warning(f"Failed to load interceptor configuration: {e}")
-
+        self._pipeline_cache[service_id] = pipeline
         return pipeline

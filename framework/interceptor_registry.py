@@ -28,6 +28,8 @@ class InterceptorRegistry:
     def load_configuration(self):
         """Load interceptor definitions from interceptors.json"""
         try:
+            if self.config_path is None:
+                return
             with open(self.config_path, 'r') as f:
                 config = json.load(f)
 
@@ -65,7 +67,8 @@ class InterceptorRegistry:
             'class': config['class'],
             'enabled': config.get('enabled', True),
             'order': config.get('order', 999),
-            'config': config.get('config', {})
+            'config': config.get('config', {}),
+            'scope': config.get('scope', {})
         }
 
         logger.debug(f"Registered interceptor '{name}': {config['module']}.{config['class']}")
@@ -146,6 +149,50 @@ class InterceptorRegistry:
         logger.info(f"Retrieved {len(interceptors)} enabled interceptor(s)")
         return interceptors
 
+    def get_enabled_interceptors_for_service(self, service_id: str) -> List[Interceptor]:
+        """
+        Get enabled interceptors for a specific service, sorted by order.
+
+        Args:
+            service_id: Service identifier to filter interceptors
+
+        Returns:
+            List of interceptor instances sorted by their order value
+        """
+        enabled_configs = [
+            (name, info) for name, info in self._registry.items()
+            if info['enabled']
+        ]
+
+        scoped_configs = []
+        for name, info in enabled_configs:
+            scope = info.get('scope', {})
+            include_services = scope.get('include_services')
+            exclude_services = scope.get('exclude_services')
+
+            if isinstance(include_services, list) and include_services:
+                if service_id not in include_services:
+                    continue
+
+            if isinstance(exclude_services, list) and exclude_services:
+                if service_id in exclude_services:
+                    continue
+
+            scoped_configs.append((name, info))
+
+        scoped_configs.sort(key=lambda x: x[1]['order'])
+
+        interceptors = []
+        for name, _ in scoped_configs:
+            interceptor = self.get_interceptor(name)
+            if interceptor:
+                interceptors.append(interceptor)
+
+        logger.info(
+            f"Retrieved {len(interceptors)} enabled interceptor(s) for service '{service_id}'"
+        )
+        return interceptors
+
     def list_interceptors(self) -> Dict[str, Dict[str, Any]]:
         """
         List all registered interceptors with their status
@@ -160,7 +207,8 @@ class InterceptorRegistry:
                 'class': info['class'],
                 'enabled': info['enabled'],
                 'order': info['order'],
-                'cached': name in self._interceptor_cache
+                'cached': name in self._interceptor_cache,
+                'scope': info.get('scope', {})
             }
         return result
 

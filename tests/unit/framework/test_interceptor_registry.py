@@ -65,6 +65,7 @@ class TestInterceptorRegistry:
         assert interceptor_info["enabled"] is True
         assert interceptor_info["order"] == 999
         assert interceptor_info["config"] == {}
+        assert interceptor_info["scope"] == {}
 
     def test_register_interceptor_full_config(self):
         """Test registering interceptor with full configuration."""
@@ -83,6 +84,7 @@ class TestInterceptorRegistry:
         assert interceptor_info["enabled"] is False
         assert interceptor_info["order"] == 10
         assert interceptor_info["config"] == {"param": "value"}
+        assert interceptor_info["scope"] == {}
 
     def test_register_interceptor_missing_module(self):
         """Test registering interceptor without required module field."""
@@ -286,8 +288,10 @@ class TestInterceptorRegistry:
         assert len(interceptors) == 2
         assert interceptors["interceptor1"]["enabled"] is True
         assert interceptors["interceptor1"]["cached"] is True
+        assert interceptors["interceptor1"]["scope"] == {}
         assert interceptors["interceptor2"]["enabled"] is False
         assert interceptors["interceptor2"]["cached"] is False
+        assert interceptors["interceptor2"]["scope"] == {}
 
     def test_enable_interceptor(self):
         """Test enabling a disabled interceptor."""

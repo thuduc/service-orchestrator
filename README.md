@@ -1,146 +1,98 @@
-## GenAI Proof of Concept: creation of a complex software framework in Python
-The purpose of this proof of concept is to find out if an LLM can design and implement a complex framework using foundational software patterns and best practices. For our PoC, we will be using Python as the programming language. The framework we're building is a Service Orchestation framework, which supports dynamic loading of services, service execution, and service orchestration.
+# Service Pipeline Framework
 
-### LLM & AI Tool
-* LLM used: Claude Opus 4 (best coding LLM) - https://www.anthropic.com/claude/opus
-* AI tool used: Claude Code (best coding CLI due to its integration with Clause 4 LLMs) - https://www.anthropic.com/claude-code
+## Requirements
+- Python-based, configuration-driven framework for service execution.
+- All components implement a single contract: `execute(context) -> dict`.
+- Single service entrypoint that dispatches by `service_id` in the context.
+- Steps-based execution model for composing multi-step services.
+- Interceptor pipeline for cross-cutting concerns (logging, validation, metrics).
+- Support service-scoped interceptors (include/exclude by service).
 
-### Development Process: 
-* Step 1 - use Claude Code to design a Service Orchestration framework using requirements specified in the [REQUIREMENTS.md](REQUIREMENTS.md). The design will be saved to [FRAMEWORK_DESIGN.md](FRAMEWORK_DESIGN.md) file for review.
-* Step 2 - developer reviews the FRAMEWORK_DESIGN.md and makes changes as needed. Developer can also provide feedback to Claude Code and iterate until the design is ready.
-* Step 3 - use Claude Code to generate code using the [FRAMEWORK_DESIGN.md](FRAMEWORK_DESIGN.md)
+## Design
 
-### PoC Results
-* The process took an hour to complete
-* The framework and its default implementation resides under framework/ directory. The sample components reside under components/ directory
+### Core Concepts
+- **Contract**: `Component` and `Interceptor` interfaces define the public API.
+- **Orchestration**: Service registry, steps executor, interceptor pipeline, and entrypoint.
+- **Implementation**: Default components and interceptors live in the implementation layer.
+- **Configuration**: Services and interceptors are registered via JSON files.
 
-### Features
+### Execution Flow
+1) `ServiceEntrypoint.execute(context)` reads `service_id`.
+2) `ServiceRegistry` loads the steps for that service.
+3) `StepsExecutor` runs each step sequentially, merging results into the shared context.
+4) `InterceptorPipeline` wraps execution with `before/after/on_error` hooks.
 
-- **Component-based architecture**: All components implement a common `execute(context)` interface
-- **Dynamic component loading**: Components are loaded dynamically based on configuration
-- **Middleware pipeline**: Support for cross-cutting concerns through middleware
-- **Configuration-driven**: Service mappings defined in JSON configuration
-- **Extensible design**: Easy to add new components and middleware
+### Interceptor Scoping
+- Each interceptor can define a `scope` with `include_services` and/or `exclude_services`.
+- The pipeline is cached per service to avoid repeated construction.
 
-### Project Structure
-
+## Directory Layout
 ```
-model-svc/
-├── framework/                 # Core framework modules
-│   ├── __init__.py
-│   ├── component.py          # Base component contract
-│   ├── service_registry.py   # Component registration and lookup
-│   ├── service_entrypoint.py # Main service entry point
-│   ├── middleware.py         # Middleware base classes
-│   └── logging_middleware.py # Logging middleware implementation
-├── components/               # Component implementations
-│   ├── __init__.py
-│   ├── pre_calibration.py   # Pre-Calibration component
-│   └── simulation.py        # Simulation component
-├── services.json            # Service configuration
-├── main.py                  # Example usage
-└── FRAMEWORK_DESIGN.md      # Detailed design documentation
+frameworks/
+  service_pipeline/
+    contract/              # interfaces
+    orchestration/         # registry, pipelines, executor
+    implementation/        # default components + interceptors
+    resources/             # services.json, interceptors.json
+    tests/                 # unit/integration/performance tests
+    main.py                # framework entrypoint
 ```
 
-### Quick Start
+## Implementation Details
 
-1. Run the example:
-```bash
-python3 main.py
-```
-
-### Creating New Components
-
-1. Create a new Python module in the `components/` directory
-2. Implement the `Component` interface:
-
+### Component Contract
 ```python
-from framework.component import Component
-from typing import Dict, Any
-
-class MyComponent(Component):
+class Component(ABC):
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        # Your component logic here
-        return {"status": "success", "message": "Hello from MyComponent"}
+        ...
 ```
 
-3. Register the component in `services.json`:
-
-```json
-{
-  "services": {
-    "my-service": {
-      "module": "components.my_component",
-      "class": "MyComponent",
-      "config": {}
-    }
-  }
-}
-```
-
-### Using the Framework
-
+### Interceptor Contract
 ```python
-from framework import ServiceRegistry, ServiceEntrypoint
+class Interceptor(ABC):
+    def before(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        return context
 
-# Initialize registry and entrypoint
-registry = ServiceRegistry(config_path='services.json')
-service = ServiceEntrypoint(registry=registry)
+    def after(self, context: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+        return result
 
-# Execute a component
-context = {
-    "service_id": "my-service",
-    "request_id": "req-123",
-    "data": {"key": "value"}
-}
-result = service.execute(context)
+    def on_error(self, context: Dict[str, Any], error: Exception) -> Optional[Dict[str, Any]]:
+        return None
 ```
 
-### Interceptors
+### Configuration
+- Services: `frameworks/service_pipeline/resources/services.json`
+- Interceptors: `frameworks/service_pipeline/resources/interceptors.json`
 
-The framework supports interceptors for cross-cutting concerns:
-
-- **LoggingInterceptor**: Logs component execution details
-- Custom interceptors can be added by implementing the `Interceptor` interface
-
-## Configuration
-
-Services are configured in `services.json`:
-
+Each service defines a list of steps with a `module` and `class`. Example:
 ```json
 {
   "services": {
-    "service-id": {
-      "module": "module.path",
-      "class": "ClassName",
-      "config": {
-        "param1": "value1"
-      }
+    "data-processing": {
+      "steps": [
+        {
+          "name": "validate",
+          "module": "frameworks.service_pipeline.implementation.components.validation",
+          "class": "ValidationComponent",
+          "config": {"required_fields": ["data", "request_id"]}
+        }
+      ]
     }
   }
 }
 ```
 
-### Interceptor Configuration
-
-Interceptors are configured in `interceptors.json`:
-
+### Service-Scoped Interceptors
 ```json
 {
   "interceptors": {
-    "logging": {
-      "module": "interceptors.logging",
-      "class": "LoggingInterceptor",
-      "enabled": true,
-      "order": 1
-    },
     "validation": {
-      "module": "interceptors.validation",
+      "module": "frameworks.service_pipeline.implementation.interceptors.validation",
       "class": "ValidationInterceptor",
       "enabled": true,
       "order": 2,
       "scope": {
-        "include_services": ["service-a", "service-b"],
+        "include_services": ["service-a"],
         "exclude_services": ["service-b"]
       }
     }
@@ -148,6 +100,49 @@ Interceptors are configured in `interceptors.json`:
 }
 ```
 
-### Future Enhancements
+## Setup
 
-See `FRAMEWORK_DESIGN.md` for planned features and extensions.
+### Python Environment
+The repo includes a virtual environment under `test_env/`. Use it for testing:
+```bash
+./test_env/bin/python -m pytest
+```
+
+If you need to install test dependencies:
+```bash
+python3 -m pip install -r requirements-test.txt
+```
+
+## Execution
+
+Run the service pipeline demo:
+```bash
+python3 main.py
+```
+
+Or run the framework entrypoint directly:
+```bash
+python3 frameworks/service_pipeline/main.py
+```
+
+## Tests
+
+Run all tests:
+```bash
+./test_env/bin/python -m pytest
+```
+
+Run a specific suite:
+```bash
+./test_env/bin/python -m pytest frameworks/service_pipeline/tests/unit
+```
+
+Performance benchmarks:
+```bash
+./test_env/bin/python -m pytest frameworks/service_pipeline/tests/performance --benchmark-only
+```
+
+## Notes
+- The framework is built around step-based orchestration for both single- and multi-step services.
+- Interceptors provide cross-cutting concerns with service-level scoping.
+- The layout is designed to support additional frameworks alongside `service_pipeline`.

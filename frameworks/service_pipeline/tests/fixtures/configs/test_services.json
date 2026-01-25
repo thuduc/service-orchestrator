@@ -1,0 +1,93 @@
+{
+  "services": {
+    "test_validation_service": {
+      "steps": [
+        {
+          "name": "validation_step",
+          "module": "frameworks.service_pipeline.implementation.components.validation",
+          "class": "ValidationComponent",
+          "config": {
+            "required_fields": ["user_id", "data"]
+          }
+        }
+      ]
+    },
+    "test_transformation_service": {
+      "steps": [
+        {
+          "name": "transform_step",
+          "module": "frameworks.service_pipeline.implementation.components.transformation",
+          "class": "TransformationComponent",
+          "config": {
+            "transform_type": "uppercase"
+          }
+        }
+      ]
+    },
+    "test_multi_step_service": {
+      "steps": [
+        {
+          "name": "validation",
+          "module": "frameworks.service_pipeline.implementation.components.validation",
+          "class": "ValidationComponent",
+          "config": {
+            "required_fields": ["data"]
+          }
+        },
+        {
+          "name": "transformation",
+          "module": "frameworks.service_pipeline.implementation.components.transformation",
+          "class": "TransformationComponent",
+          "config": {
+            "transform_type": "normalize"
+          }
+        },
+        {
+          "name": "persistence",
+          "module": "frameworks.service_pipeline.implementation.components.persistence",
+          "class": "PersistenceComponent",
+          "config": {
+            "output_dir": "./test_output",
+            "format": "json"
+          }
+        }
+      ]
+    },
+    "test_simple_service": {
+      "steps": [
+        {
+          "name": "simple_step",
+          "module": "frameworks.service_pipeline.implementation.components.pre_calibration",
+          "class": "PreCalibrationComponent",
+          "config": {}
+        }
+      ]
+    },
+    "test_error_handling_service": {
+      "steps": [
+        {
+          "name": "validation_with_strict",
+          "module": "frameworks.service_pipeline.implementation.components.validation",
+          "class": "ValidationComponent",
+          "config": {
+            "required_fields": ["mandatory_field"]
+          },
+          "on_error": "fail_fast"
+        },
+        {
+          "name": "transformation_fallback",
+          "module": "frameworks.service_pipeline.implementation.components.transformation",
+          "class": "TransformationComponent",
+          "config": {
+            "transform_type": "uppercase"
+          },
+          "on_error": "skip",
+          "fallback_output": {
+            "transform_failed": true,
+            "fallback_data": "default_output"
+          }
+        }
+      ]
+    }
+  }
+}

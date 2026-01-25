@@ -1,0 +1,12 @@
+{
+  "services": {
+    "invalid_service": {
+      "steps": [
+        {
+          "name": "incomplete_step",
+          "module": "missing.class.field"
+        }
+      ]
+    }
+  }
+}

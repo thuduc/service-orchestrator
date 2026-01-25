@@ -1,0 +1,14 @@
+{
+  "services": {
+    "invalid_json_service": {
+      "steps": [
+        {
+          "name": "test",
+          "module": "test.module",
+          "class": "TestClass"
+        }
+      ]
+    }
+  }
+  // This comment makes it invalid JSON
+}

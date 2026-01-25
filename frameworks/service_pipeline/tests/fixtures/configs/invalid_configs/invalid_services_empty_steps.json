@@ -1,0 +1,7 @@
+{
+  "services": {
+    "empty_steps_service": {
+      "steps": []
+    }
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "custom_checks": {
+    "is_valid_email_domain": {
+      "module": "frameworks.data_validation.checks.builtin.string_checks",
+      "class": "ValidEmailDomainCheck",
+      "description": "Validates that email addresses have domains from an allowed list",
+      "default_params": {
+        "allowed_domains": null
+      }
+    },
+    "is_non_empty_string": {
+      "module": "frameworks.data_validation.checks.builtin.string_checks",
+      "class": "NonEmptyStringCheck",
+      "description": "Validates that string values are not empty or whitespace-only",
+      "default_params": {
+        "allow_whitespace": false
+      }
+    },
+    "string_pattern": {
+      "module": "frameworks.data_validation.checks.builtin.string_checks",
+      "class": "StringPatternCheck",
+      "description": "Validates that string values match a regex pattern",
+      "default_params": {
+        "case_insensitive": false
+      }
+    },
+    "is_working_age": {
+      "module": "frameworks.data_validation.checks.builtin.numeric_checks",
+      "class": "WorkingAgeCheck",
+      "description": "Validates that age values are within typical working age range",
+      "default_params": {
+        "min_age": 18,
+        "max_age": 65,
+        "allow_null": true
+      }
+    },
+    "is_positive": {
+      "module": "frameworks.data_validation.checks.builtin.numeric_checks",
+      "class": "PositiveNumberCheck",
+      "description": "Validates that numeric values are positive",
+      "default_params": {
+        "include_zero": false,
+        "allow_null": true
+      }
+    },
+    "sum_equals": {
+      "module": "frameworks.data_validation.checks.builtin.numeric_checks",
+      "class": "SumEqualsCheck",
+      "description": "Validates that the sum of specified columns equals a target value or column",
+      "default_params": {
+        "tolerance": 0.0001
+      }
+    },
+    "is_percentage": {
+      "module": "frameworks.data_validation.checks.builtin.numeric_checks",
+      "class": "PercentageRangeCheck",
+      "description": "Validates that values are valid percentages (0-100 or 0-1)",
+      "default_params": {
+        "scale": "percent",
+        "allow_null": true
+      }
+    },
+    "is_not_future_date": {
+      "module": "frameworks.data_validation.checks.builtin.date_checks",
+      "class": "FutureDateCheck",
+      "description": "Validates that date values are not in the future",
+      "default_params": {
+        "allow_today": true,
+        "allow_null": true
+      }
+    },
+    "date_order": {
+      "module": "frameworks.data_validation.checks.builtin.date_checks",
+      "class": "DateOrderCheck",
+      "description": "Validates that one date column is before/after another",
+      "default_params": {
+        "comparison": "before",
+        "allow_equal": true,
+        "allow_null": true
+      }
+    },
+    "date_in_range": {
+      "module": "frameworks.data_validation.checks.builtin.date_checks",
+      "class": "DateInRangeCheck",
+      "description": "Validates that date values are within a specified range",
+      "default_params": {
+        "allow_null": true
+      }
+    },
+    "conditional_required": {
+      "module": "frameworks.data_validation.checks.builtin.business_checks",
+      "class": "ConditionalRequiredCheck",
+      "description": "Validates that a field is required when a condition is met",
+      "default_params": {
+        "condition_operator": "equals"
+      }
+    },
+    "unique_combination": {
+      "module": "frameworks.data_validation.checks.builtin.business_checks",
+      "class": "UniqueCombinationCheck",
+      "description": "Validates that a combination of columns is unique across all rows",
+      "default_params": {
+        "allow_null": true
+      }
+    },
+    "exists_in": {
+      "module": "frameworks.data_validation.checks.builtin.referential_checks",
+      "class": "ExistsInCheck",
+      "description": "Validates that values exist in a reference dataset",
+      "default_params": {
+        "allow_null": true
+      }
+    },
+    "exists_in_with_condition": {
+      "module": "frameworks.data_validation.checks.builtin.referential_checks",
+      "class": "ExistsInWithConditionCheck",
+      "description": "Validates that values exist in a reference dataset with additional conditions",
+      "default_params": {
+        "allow_null": true
+      }
+    }
+  }
+}

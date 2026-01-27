@@ -1,0 +1,314 @@
+{
+  "validation_pipelines": {
+    "customer_validation": {
+      "description": "Validates customer records with schema, business rules, and referential checks",
+      "on_failure": "collect_all",
+      "stages": [
+        {
+          "name": "validate_customer_schema",
+          "type": "schema_validation",
+          "config": {
+            "coerce": true,
+            "strict": false,
+            "columns": {
+              "customer_id": {
+                "dtype": "Int64",
+                "nullable": false,
+                "unique": true,
+                "checks": [
+                  {"builtin": "greater_than", "value": 0}
+                ]
+              },
+              "email": {
+                "dtype": "Utf8",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "str_matches", "pattern": "^[\\w.-]+@[\\w.-]+\\.\\w+$"}
+                ]
+              },
+              "first_name": {
+                "dtype": "Utf8",
+                "nullable": false
+              },
+              "last_name": {
+                "dtype": "Utf8",
+                "nullable": false
+              },
+              "age": {
+                "dtype": "Int64",
+                "nullable": true,
+                "checks": [
+                  {"builtin": "in_range", "min_value": 0, "max_value": 150}
+                ]
+              },
+              "registration_date": {
+                "dtype": "Date",
+                "nullable": false
+              },
+              "status": {
+                "dtype": "Utf8",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "isin", "allowed_values": ["active", "inactive", "pending", "suspended"]}
+                ]
+              },
+              "country_code": {
+                "dtype": "Utf8",
+                "nullable": true
+              }
+            }
+          }
+        },
+        {
+          "name": "validate_business_rules",
+          "type": "custom_rules",
+          "config": {
+            "fail_fast": false,
+            "rules": [
+              {
+                "check_id": "is_valid_email_domain",
+                "column": "email",
+                "params": {
+                  "allowed_domains": ["gmail.com", "yahoo.com", "outlook.com", "company.com"]
+                },
+                "error_message": "Email domain must be from an approved provider"
+              },
+              {
+                "check_id": "is_working_age",
+                "column": "age",
+                "params": {
+                  "min_age": 18,
+                  "max_age": 100
+                }
+              },
+              {
+                "check_id": "is_not_future_date",
+                "column": "registration_date",
+                "params": {
+                  "allow_today": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "validate_cross_field_rules",
+          "type": "cross_field_validation",
+          "config": {
+            "rules": [
+              {
+                "check_id": "conditional_required",
+                "columns": ["status", "country_code"],
+                "params": {
+                  "condition_column": "status",
+                  "condition_value": "active",
+                  "condition_operator": "equals"
+                },
+                "error_message": "Active customers must have a country_code"
+              }
+            ]
+          }
+        },
+        {
+          "name": "validate_country_reference",
+          "type": "referential_validation",
+          "config": {
+            "rules": [
+              {
+                "check_id": "exists_in",
+                "column": "country_code",
+                "reference_dataset": "countries",
+                "reference_column": "code",
+                "error_message": "Country code must exist in the countries reference table"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "order_validation": {
+      "description": "Validates order records with fail-fast behavior",
+      "on_failure": "fail_fast",
+      "stages": [
+        {
+          "name": "validate_order_schema",
+          "type": "schema_validation",
+          "config": {
+            "coerce": true,
+            "drop_invalid_rows": false,
+            "columns": {
+              "order_id": {
+                "dtype": "Int64",
+                "nullable": false,
+                "unique": true
+              },
+              "customer_id": {
+                "dtype": "Int64",
+                "nullable": false
+              },
+              "order_date": {
+                "dtype": "Date",
+                "nullable": false
+              },
+              "ship_date": {
+                "dtype": "Date",
+                "nullable": true
+              },
+              "subtotal": {
+                "dtype": "Float64",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "greater_than_or_equal_to", "value": 0}
+                ]
+              },
+              "tax": {
+                "dtype": "Float64",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "greater_than_or_equal_to", "value": 0}
+                ]
+              },
+              "total": {
+                "dtype": "Float64",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "greater_than", "value": 0}
+                ]
+              },
+              "status": {
+                "dtype": "Utf8",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "isin", "allowed_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"]}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": "validate_order_dates",
+          "type": "cross_field_validation",
+          "config": {
+            "rules": [
+              {
+                "check_id": "date_order",
+                "columns": ["order_date", "ship_date"],
+                "params": {
+                  "comparison": "before",
+                  "allow_equal": true,
+                  "allow_null": true
+                },
+                "error_message": "Order date must be before or equal to ship date"
+              }
+            ]
+          }
+        },
+        {
+          "name": "validate_order_totals",
+          "type": "cross_field_validation",
+          "config": {
+            "rules": [
+              {
+                "check_id": "sum_equals",
+                "columns": ["subtotal", "tax"],
+                "params": {
+                  "target_column": "total",
+                  "tolerance": 0.01
+                },
+                "error_message": "Subtotal + tax must equal total"
+              }
+            ]
+          }
+        },
+        {
+          "name": "validate_customer_exists",
+          "type": "referential_validation",
+          "config": {
+            "rules": [
+              {
+                "check_id": "exists_in",
+                "column": "customer_id",
+                "reference_dataset": "customers",
+                "reference_column": "customer_id",
+                "error_message": "Customer must exist in the customers table"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "product_validation_with_cleanup": {
+      "description": "Validates products and drops invalid rows",
+      "on_failure": "collect_all",
+      "stages": [
+        {
+          "name": "validate_and_clean_products",
+          "type": "schema_validation",
+          "config": {
+            "coerce": true,
+            "drop_invalid_rows": true,
+            "treat_dropped_as_failure": false,
+            "columns": {
+              "product_id": {
+                "dtype": "Int64",
+                "nullable": false,
+                "unique": true
+              },
+              "name": {
+                "dtype": "Utf8",
+                "nullable": false
+              },
+              "price": {
+                "dtype": "Float64",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "greater_than", "value": 0}
+                ]
+              },
+              "category": {
+                "dtype": "Utf8",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "isin", "allowed_values": ["electronics", "clothing", "food", "books", "other"]}
+                ]
+              },
+              "stock_quantity": {
+                "dtype": "Int64",
+                "nullable": false,
+                "checks": [
+                  {"builtin": "greater_than_or_equal_to", "value": 0}
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "simple_schema_only": {
+      "description": "Simple schema-only validation example",
+      "on_failure": "fail_fast",
+      "stages": [
+        {
+          "name": "validate_basic_schema",
+          "type": "schema_validation",
+          "config": {
+            "columns": {
+              "id": {
+                "dtype": "Int64",
+                "nullable": false
+              },
+              "name": {
+                "dtype": "Utf8",
+                "nullable": false
+              },
+              "value": {
+                "dtype": "Float64",
+                "nullable": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

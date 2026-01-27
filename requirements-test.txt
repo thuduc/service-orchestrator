@@ -1,6 +1,16 @@
+# Testing framework
 pytest>=7.0.0
 pytest-cov>=4.0.0
 pytest-mock>=3.10.0
 pytest-benchmark>=4.0.0
+
+# Performance testing
 memory-profiler>=0.60.0
 locust>=2.14.0
+
+# Data Validation Framework dependencies
+polars>=1.0.0
+pandera>=0.20.0
+
+# Optional: YAML config support
+pyyaml>=6.0.0
